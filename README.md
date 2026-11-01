@@ -8,8 +8,7 @@
 
 ## 1. 배포 주소
 
-<!-- 배포 뒤 채움 -->
-https://TODO.streamlit.app
+https://team-former-2601936.streamlit.app
 
 ## 2. PRD 와 구현 계획
 
@@ -83,7 +82,9 @@ https://TODO.streamlit.app
 
 **사례 2 — 쓸 수 없는 DB 라이브러리를 지정함 (커밋 `8b77ddc`)**
 
-클로드는 `requirements.txt` 에 `psycopg2-binary` 를 적었다. 이 PC 의 파이썬은 3.14 인데 `psycopg2-binary` 는 3.14 용 wheel 이 없어 설치가 소스 빌드로 넘어가며 실패했다. 설치 오류를 보고 알아챘고, 3.14 와 Streamlit Cloud 양쪽에서 도는 `psycopg[binary]`(psycopg3)로 바꿨다.
+클로드는 `requirements.txt` 에 `psycopg2-binary` 를 적었다. 이 PC 의 파이썬은 3.14 인데 `psycopg2-binary` 는 3.14 용 wheel 이 없어 설치가 소스 빌드로 넘어가며 실패했다. 설치 오류를 보고 알아챘고 `psycopg[binary]`(psycopg3)로 바꿨다.
+
+나중에 배포하면서 이 교체가 로컬만 살린 것이 아님을 알았다. Streamlit Community Cloud 의 빌드 로그에 `Using Python 3.14.10 environment` 라고 찍혔다. 그대로 두었다면 배포도 같은 이유로 실패했을 것이다.
 
 바꾸면서 생긴 문제도 하나 있었다. psycopg3 은 같은 질의를 다섯 번 쓰면 자동으로 prepared statement 를 만드는데, Supabase 의 transaction pooler 는 이를 지원하지 않는다. 로컬에서는 질의 수가 적어 드러나지 않고 채점 중에 터졌을 문제라, `prepare_threshold=None` 으로 꺼 두었다 (커밋 `30019a7`).
 
@@ -109,6 +110,8 @@ https://TODO.streamlit.app
 | 화면 요소 `key` 17개 | `streamlit.testing.v1.AppTest` | 전부 존재 |
 | 틀린 비밀번호·학번만 로그인 | 같음 | 거부됨 |
 | 커밋 기록의 비밀 값 | `git log --all -p` 검색 | 키·DB 주소·관리자 비밀번호 없음 |
+| 배포한 앱이 로그인 없이 열리는지 | 쿠키 없는 새 세션으로 접속 | HTTP 200, 로그인 요구 없음 |
+| DB 일시정지 방지 | GitHub Actions 를 수동 실행 | `살아 있음. 학생 수: 17` |
 
 ## 9. 테이블
 
