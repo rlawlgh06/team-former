@@ -22,11 +22,6 @@ from roster import parse_roster
 from rules import validate_assignment
 
 KST = timezone(timedelta(hours=9))
-DEFAULT_MODELS = (
-    "deepseek/deepseek-chat-v3.1:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "qwen/qwen3-235b-a22b:free",
-)
 # AI 배정 전체 상한. 넘기면 앱이 스스로 배정한다 (공고 6.3절 18번)
 TOTAL_BUDGET = 400.0
 
@@ -37,7 +32,7 @@ def models() -> list[str]:
         picked = [m.strip() for m in raw.split(",") if m.strip()]
         if picked:
             return picked
-    return list(DEFAULT_MODELS)
+    return list(assign_ai.DEFAULT_MODELS)
 
 
 def now_kst() -> str:

@@ -20,6 +20,15 @@ from rules import validate_assignment
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_TIMEOUT = 120.0
 
+# 2026-11-01 에 실제로 불러 보고 고른 무료 모델. 한 제공자가 429 를 내도
+# 나머지가 살아 있도록 제공자를 서로 다르게 했다.
+# 무료 모델로 자동 연결하는 라우터(openrouter/free)는 쓰지 않는다 (공고 4.3절).
+DEFAULT_MODELS = (
+    "cohere/north-mini-code:free",
+    "google/gemma-4-31b-it:free",
+    "xingchen-agi/xing4.0-29b-a4b:free",
+)
+
 OK = "성공"
 TIMEOUT = "시간 초과"
 ERROR = "오류"
