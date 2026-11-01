@@ -16,3 +16,6 @@ venv/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# 제출용 압축 파일
+*.zip
