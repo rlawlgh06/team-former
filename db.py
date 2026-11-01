@@ -53,7 +53,7 @@ def get_pool() -> ConnectionPool:
             # psycopg3 은 같은 질의를 다섯 번 쓰면 자동으로 prepare 하므로 꺼 둔다.
             kwargs={"prepare_threshold": None, "connect_timeout": 10},
         )
-        pool.open(wait=True, timeout=20)
+        pool.open(wait=True, timeout=15)
         return pool
     except Exception as exc:
         # 접속 주소에는 비밀번호가 들어 있으므로 메시지에 넣지 않는다

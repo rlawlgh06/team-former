@@ -63,7 +63,6 @@ def draw_result() -> None:
 
 
 def login_view() -> None:
-    st.title("팀 편성")
     with st.form("login_form"):
         student_no = st.text_input("학번", key=keys.LOGIN_STUDENT_NO)
         password = st.text_input("비밀번호", type="password", key=keys.LOGIN_PASSWORD)
@@ -329,10 +328,14 @@ def _run_assignment() -> None:
 
 def main() -> None:
     st.set_page_config(page_title="팀 편성", layout="wide")
+    # 제목을 먼저 그린다. 화면이 비어 있으면 스크립트가 아예 돌지 않은 것이고,
+    # 제목만 보이면 그다음(DB 연결)에서 멈춘 것이라 원인을 구별할 수 있다.
+    st.title("팀 편성")
     try:
-        boot()
+        with st.spinner("DB 에 연결하는 중"):
+            boot()
     except Exception as exc:
-        st.error(str(exc))
+        st.error(f"앱을 시작하지 못했습니다 — {type(exc).__name__}: {exc}")
         st.stop()
 
     account = st.session_state.get("account")
