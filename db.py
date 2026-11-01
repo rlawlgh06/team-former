@@ -43,7 +43,16 @@ def get_pool() -> ConnectionPool:
     if not url:
         raise RuntimeError("DATABASE_URL 이 없음 (.env 또는 Streamlit Secrets 를 확인)")
     try:
-        pool = ConnectionPool(url, min_size=1, max_size=8, timeout=15, open=False)
+        pool = ConnectionPool(
+            url,
+            min_size=1,
+            max_size=8,
+            timeout=15,
+            open=False,
+            # Supabase 의 transaction pooler 는 prepared statement 를 지원하지 않는다.
+            # psycopg3 은 같은 질의를 다섯 번 쓰면 자동으로 prepare 하므로 꺼 둔다.
+            kwargs={"prepare_threshold": None, "connect_timeout": 10},
+        )
         pool.open(wait=True, timeout=20)
         return pool
     except Exception as exc:
