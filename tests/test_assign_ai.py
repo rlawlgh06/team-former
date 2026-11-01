@@ -46,6 +46,16 @@ def test_JSON_앞뒤에_설명이_붙어도_읽는다():
     assert parse_plan(text) == {"2026101": 2}
 
 
+def test_추론을_글로_쓰다가_마지막에_JSON을_내놓아도_읽는다():
+    text = (
+        "We need to assign 8 students to teams 1-4.\n"
+        "Team 1 has {planner, webdev} so we cannot add another planner.\n"
+        "Final answer:\n"
+        '{"2026101": 2, "2026102": 4}'
+    )
+    assert parse_plan(text) == {"2026101": 2, "2026102": 4}
+
+
 def test_assignments_목록_꼴도_읽는다():
     text = '{"assignments": [{"student_no": "2026101", "team": 3}]}'
     assert parse_plan(text) == {"2026101": 3}

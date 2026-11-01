@@ -86,9 +86,13 @@ def build_prompt(
    주 역할이든 보조 역할이든 맡을 수 있다. 한 학생이 둘 다 맡을 수는 없다.
 
 [출력 형식]
-설명 없이 JSON 객체 하나만 출력해라. 키는 팀이 없는 학생의 학번(문자열),
-값은 배정할 팀 번호(정수)다.
-예: {{"2026101": 1, "2026102": 3}}
+JSON 객체 하나만 출력해라. 첫 글자는 {{ 이고 마지막 글자는 }} 여야 한다.
+생각하는 과정, 설명, 머리말, 코드 울타리를 쓰지 마라.
+키는 팀이 없는 학생의 학번(문자열), 값은 배정할 팀 번호(정수)다.
+팀이 없는 학생 {len(unassigned)}명이 모두 키로 들어 있어야 한다.
+
+예시 출력:
+{{"2026101": 1, "2026102": 3}}
 """
 
 
@@ -103,8 +107,7 @@ def parse_plan(text: str) -> dict[str, int] | None:
     후보 = [text]
     fenced = re.findall(r"```(?:json)?\s*(.*?)```", text, re.DOTALL)
     후보 = fenced + 후보
-    braced = re.findall(r"\{.*\}", text, re.DOTALL)
-    후보 = 후보 + braced
+    후보 = 후보 + _balanced_objects(text)
 
     for chunk in 후보:
         try:
@@ -115,6 +118,22 @@ def parse_plan(text: str) -> dict[str, int] | None:
         if plan:
             return plan
     return None
+
+
+def _balanced_objects(text: str) -> list[str]:
+    """글 속에 섞인 중괄호 덩어리를 바깥쪽이 긴 것부터 모은다.
+
+    추론을 글로 쓰다가 마지막에 JSON 을 내놓는 모델이 있다.
+    """
+    out: list[str] = []
+    starts: list[int] = []
+    for i, ch in enumerate(text):
+        if ch == "{":
+            starts.append(i)
+        elif ch == "}" and starts:
+            out.append(text[starts.pop() : i + 1])
+    out.sort(key=len, reverse=True)
+    return out[:20]
 
 
 def _as_plan(data: object) -> dict[str, int] | None:
@@ -163,7 +182,7 @@ def openrouter_call(model: str, prompt: str, *, api_key: str, timeout: float) ->
             "messages": [{"role": "user", "content": prompt}],
             # 추론 모델이 생각하는 데 한도를 다 써서 빈 응답을 내는 일을 줄인다
             "reasoning": {"effort": "low"},
-            "max_tokens": 4000,
+            "max_tokens": 8000,
             "temperature": 0.2,
         },
         timeout=timeout,

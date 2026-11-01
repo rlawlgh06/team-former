@@ -80,44 +80,59 @@ class Maps:
     slots: dict[int, dict[str, int]] = field(default_factory=dict)  # 팀 번호 -> {학번: 자리}
 
 
+# 상태 전체를 한 번의 왕복으로 읽는다. 표마다 따로 물으면 왕복이 일곱 번이 되어
+# 화면 한 번 그리는 데 그만큼 늦어진다.
+_READ_SQL = """
+SELECT
+  coalesce((SELECT json_agg(json_build_array(id, student_no, name, main_role))
+            FROM tf_students WHERE NOT is_admin), '[]') AS students,
+  coalesce((SELECT json_agg(json_build_array(student_id, role))
+            FROM tf_student_sub_roles), '[]') AS subs,
+  coalesce((SELECT json_agg(json_build_array(id, team_no) ORDER BY team_no)
+            FROM tf_teams), '[]') AS teams,
+  coalesce((SELECT json_agg(json_build_array(team_id, slot_no, student_id)
+                            ORDER BY team_id, slot_no)
+            FROM tf_members), '[]') AS members,
+  coalesce((SELECT json_agg(json_build_array(id, team_id, student_id, status, reason)
+                            ORDER BY id)
+            FROM tf_applications), '[]') AS applications,
+  coalesce((SELECT json_agg(json_build_array(application_id, voter_id, vote))
+            FROM tf_votes), '[]') AS votes,
+  (SELECT value FROM tf_settings WHERE key = %s) AS closed
+"""
+
+
 def _read(cur) -> tuple[State, Maps]:
     maps = Maps()
     state = State()
 
-    cur.execute(
-        "SELECT id, student_no, name, main_role FROM tf_students "
-        "WHERE NOT is_admin ORDER BY student_no"
-    )
-    rows = cur.fetchall()
+    cur.execute(_READ_SQL, (CLOSED_KEY,))
+    students, subs_rows, teams, member_rows, apps, votes, closed = cur.fetchone()
+
     subs: dict[int, list[str]] = {}
-    cur.execute("SELECT student_id, role FROM tf_student_sub_roles ORDER BY student_id, role")
-    for sid, role in cur.fetchall():
+    for sid, role in subs_rows:
         subs.setdefault(sid, []).append(role)
 
-    for sid, no, name, main_role in rows:
+    for sid, no, name, main_role in students:
         maps.sid_of[no] = sid
         maps.no_of[sid] = no
-        state.students[no] = Student(no, name, main_role, tuple(subs.get(sid, ())))
+        state.students[no] = Student(no, name, main_role, tuple(sorted(subs.get(sid, ()))))
 
-    cur.execute("SELECT id, team_no FROM tf_teams ORDER BY team_no")
-    for tid, tno in cur.fetchall():
+    for tid, tno in teams:
         maps.tid_of[tno] = tid
         maps.tno_of[tid] = tno
         state.teams[tno] = []
         maps.slots[tno] = {}
 
-    cur.execute("SELECT team_id, slot_no, student_id FROM tf_members ORDER BY team_id, slot_no")
-    for tid, slot, sid in cur.fetchall():
-        tno, no = maps.tno_of[tid], maps.no_of.get(sid)
+    for tid, slot, sid in member_rows:
+        no = maps.no_of.get(sid)
         if no is None:
             continue
+        tno = maps.tno_of[tid]
         state.teams[tno].append(no)
         maps.slots[tno][no] = slot
 
-    cur.execute(
-        "SELECT id, team_id, student_id, status, reason FROM tf_applications ORDER BY id"
-    )
-    for aid, tid, sid, status, reason in cur.fetchall():
+    for aid, tid, sid, status, reason in apps:
         no = maps.no_of.get(sid)
         if no is None:
             continue
@@ -125,16 +140,12 @@ def _read(cur) -> tuple[State, Maps]:
             aid, maps.tno_of[tid], no, status, reason
         )
 
-    cur.execute("SELECT application_id, voter_id, vote FROM tf_votes")
-    for aid, vid, vote in cur.fetchall():
+    for aid, vid, vote in votes:
         voter = maps.no_of.get(vid)
         if voter is not None:
             state.votes[(aid, voter)] = vote
 
-    cur.execute("SELECT value FROM tf_settings WHERE key = %s", (CLOSED_KEY,))
-    row = cur.fetchone()
-    state.closed = bool(row and row[0] == "1")
-
+    state.closed = closed == "1"
     state.next_app_id = max(state.applications, default=0) + 1
     return state, maps
 
